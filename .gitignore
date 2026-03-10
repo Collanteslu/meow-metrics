@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.flutter/
+
+# Build artifacts
+dist/
+build/
+.dart_tool/
+pubspec.lock
+
+# Environment
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Worktrees (isolated development branches)
+.worktrees/
