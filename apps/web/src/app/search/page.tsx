@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef } from 'react';
 import SearchBar from '@/components/SearchBar';
 import api from '@/lib/api';
+import { exportToCSV, exportToPDF, downloadFile } from '@/lib/export';
 
 interface SearchResult {
   id: string;
@@ -113,6 +114,17 @@ export default function SearchPage() {
     return type.charAt(0).toUpperCase() + type.slice(1);
   };
 
+  const handleExportCSV = () => {
+    const csv = exportToCSV(results);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    downloadFile(blob, `search-results-${Date.now()}.csv`);
+  };
+
+  const handleExportPDF = () => {
+    const pdf = exportToPDF(results, `Search Results: ${query}`);
+    downloadFile(pdf, `search-results-${Date.now()}.pdf`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -150,6 +162,28 @@ export default function SearchPage() {
         {results.length === 0 && query && !loading && (
           <div className="text-center py-12 text-gray-500">
             <p className="text-lg">No results found for "{query}"</p>
+          </div>
+        )}
+
+        {results.length > 0 && (
+          <div className="mb-6 bg-white rounded-lg shadow p-4 flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              Showing <strong>{results.length}</strong> results
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportCSV}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                📊 Export CSV
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+              >
+                📄 Export PDF
+              </button>
+            </div>
           </div>
         )}
 
@@ -196,12 +230,6 @@ export default function SearchPage() {
             >
               {loading ? 'Loading...' : 'Load More'}
             </button>
-          </div>
-        )}
-
-        {results.length > 0 && (
-          <div className="text-center text-sm text-gray-500">
-            Showing {results.length} results
           </div>
         )}
       </div>

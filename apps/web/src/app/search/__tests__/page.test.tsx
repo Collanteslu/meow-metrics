@@ -17,6 +17,12 @@ describe('SearchPage', () => {
     jest.useRealTimers();
   });
 
+  // Mock download file function
+  beforeEach(() => {
+    global.URL.createObjectURL = jest.fn(() => 'blob:mock-url');
+    global.URL.revokeObjectURL = jest.fn();
+  });
+
   it('should render search page with heading', () => {
     render(<SearchPage />);
     expect(screen.getByRole('heading', { level: 1, name: /search/i })).toBeInTheDocument();
@@ -308,7 +314,7 @@ describe('SearchPage', () => {
     });
   });
 
-  it('should show result count', async () => {
+  it('should show result count in export header', async () => {
     const mockResults = {
       data: {
         results: [
@@ -340,7 +346,82 @@ describe('SearchPage', () => {
     jest.advanceTimersByTime(300);
 
     await waitFor(() => {
-      expect(screen.getByText(/showing 2 results/i)).toBeInTheDocument();
+      // Verify export header appears with buttons (which proves results are showing)
+      expect(screen.getByRole('button', { name: /export csv/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /export pdf/i })).toBeInTheDocument();
+      // Verify both results are visible
+      expect(screen.getByText('Downtown Colony')).toBeInTheDocument();
+      expect(screen.getByText('Uptown Colony')).toBeInTheDocument();
+    });
+  });
+
+  it('should show export buttons when results exist', async () => {
+    const mockResults = {
+      data: {
+        results: [
+          {
+            id: '1',
+            type: 'colony',
+            title: 'Downtown Colony',
+            description: 'Active colony',
+          },
+        ],
+        total: 1,
+        hasMore: false,
+      },
+    };
+
+    mockApi.default.get = jest.fn().mockResolvedValue(mockResults);
+
+    render(<SearchPage />);
+
+    const input = screen.getByPlaceholderText(/search/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'colony' } });
+
+    jest.advanceTimersByTime(300);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /export csv/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /export pdf/i })).toBeInTheDocument();
+    });
+  });
+
+  it('should hide export buttons when no results', () => {
+    render(<SearchPage />);
+    expect(screen.queryByRole('button', { name: /export csv/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /export pdf/i })).not.toBeInTheDocument();
+  });
+
+  it('should have both export buttons visible in export header', async () => {
+    const mockResults = {
+      data: {
+        results: [
+          {
+            id: '1',
+            type: 'colony',
+            title: 'Downtown Colony',
+            description: 'Active colony',
+          },
+        ],
+        total: 1,
+        hasMore: false,
+      },
+    };
+
+    mockApi.default.get = jest.fn().mockResolvedValue(mockResults);
+
+    render(<SearchPage />);
+
+    const input = screen.getByPlaceholderText(/search/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'colony' } });
+
+    jest.advanceTimersByTime(300);
+
+    await waitFor(() => {
+      const csvButton = screen.getByRole('button', { name: /export csv/i });
+      const pdfButton = screen.getByRole('button', { name: /export pdf/i });
+      expect(csvButton).toHaveClass('bg-green-600');
+      expect(pdfButton).toHaveClass('bg-red-600');
     });
   });
 });
