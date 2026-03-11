@@ -1,0 +1,317 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ ENUMS ============
+
+enum UserRole {
+  VOLUNTEER
+  COORDINATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum ColonyStatus {
+  ACTIVE
+  INACTIVE
+  CLOSED
+}
+
+enum CatGender {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum CatHealthStatus {
+  HEALTHY
+  SICK
+  INJURED
+  DECEASED
+}
+
+enum SterilizationStatus {
+  PENDING
+  SCHEDULED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum HealthRecordType {
+  VACCINATION
+  TREATMENT
+  INJURY
+  CHECKUP
+  OTHER
+}
+
+enum CollaboratorRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum CollaborationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+}
+
+// ============ USERS ============
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  role              UserRole @default(VOLUNTEER)
+  status            UserStatus @default(ACTIVE)
+  name              String?
+  phone             String?
+  profilePhotoUrl   String?
+  lastLogin         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  coloniesOwned     Colony[]       @relation("Owner")
+  collaborations    Collaborator[]
+  healthRecords     HealthRecord[]
+  sterilizations    Sterilization[]
+  auditLogs         AuditLog[]
+  collaborationInvites Collaboration[]
+
+  @@index([email])
+}
+
+// ============ LOCATIONS ============
+
+model Location {
+  id          String   @id @default(cuid())
+  latitude    Float
+  longitude   Float
+  address     String
+  city        String
+  postalCode  String?
+  country     String   @default("Spain")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  colonies    Colony[]
+
+  @@index([city])
+}
+
+// ============ COLONIES ============
+
+model Colony {
+  id                   String   @id @default(cuid())
+  name                 String
+  locationId           String
+  ownerId              String
+  description          String?
+  establishedDate      DateTime?
+  status               ColonyStatus @default(ACTIVE)
+  estimatedPopulation  Int?
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  location             Location       @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  owner                User           @relation("Owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  cats                 Cat[]
+  collaborators        Collaborator[]
+  sterilizations       Sterilization[]
+  healthRecords        HealthRecord[]
+  reports              Report[]
+
+  @@index([locationId])
+  @@index([ownerId])
+  @@index([name])
+}
+
+// ============ CATS ============
+
+model Cat {
+  id                   String   @id @default(cuid())
+  colonyId             String
+  name                 String?
+  microchip            String?  @unique
+  color                String?
+  distinctiveMarks     String?
+  age                  Int?
+  gender               CatGender @default(UNKNOWN)
+  healthStatus         CatHealthStatus @default(HEALTHY)
+  sterilizationStatus  SterilizationStatus @default(PENDING)
+  photoUrl             String?
+  dateRegistered       DateTime @default(now())
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  colony               Colony         @relation(fields: [colonyId], references: [id], onDelete: Cascade)
+  sterilizations       Sterilization[]
+  healthRecords        HealthRecord[]
+
+  @@index([colonyId])
+  @@index([microchip])
+}
+
+// ============ STERILIZATIONS (CER) ============
+
+model Sterilization {
+  id               String   @id @default(cuid())
+  catId            String
+  colonyId         String
+  status           SterilizationStatus @default(PENDING)
+  scheduledDate    DateTime?
+  completionDate   DateTime?
+  veterinarian     String?
+  clinicName       String?
+  cost             Float?
+  notes            String?
+  certificateUrl   String?
+  recordedById     String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  cat              Cat      @relation(fields: [catId], references: [id], onDelete: Cascade)
+  colony           Colony   @relation(fields: [colonyId], references: [id], onDelete: Cascade)
+  recordedByUser   User     @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([catId])
+  @@index([colonyId])
+  @@index([status])
+}
+
+// ============ HEALTH RECORDS ============
+
+model HealthRecord {
+  id             String   @id @default(cuid())
+  catId          String
+  colonyId       String
+  recordType     HealthRecordType
+  description    String
+  dateRecorded   DateTime @default(now())
+  veterinarian   String?
+  medications    String?
+  nextFollowup   DateTime?
+  recordedById   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  cat            Cat      @relation(fields: [catId], references: [id], onDelete: Cascade)
+  colony         Colony   @relation(fields: [colonyId], references: [id], onDelete: Cascade)
+  recordedByUser User     @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([catId])
+  @@index([colonyId])
+  @@index([recordType])
+}
+
+// ============ COLLABORATORS ============
+
+model Collaborator {
+  id          String   @id @default(cuid())
+  colonyId    String
+  userId      String
+  role        CollaboratorRole @default(VIEWER)
+  invitedBy   String
+  invitedAt   DateTime @default(now())
+  acceptedAt  DateTime?
+  status      CollaborationStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  colony      Colony   @relation(fields: [colonyId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([colonyId, userId])
+  @@index([colonyId])
+  @@index([userId])
+  @@index([status])
+}
+
+// ============ COLLABORATION (Invitations) ============
+
+model Collaboration {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  invitedToOrganization String?
+  invitedBy             String
+  status                CollaborationStatus @default(PENDING)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+// ============ AUDIT LOG ============
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  action      AuditAction
+  userId      String
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  timestamp   DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType])
+  @@index([userId])
+  @@index([timestamp])
+}
+
+// ============ REPORTS ============
+
+model Report {
+  id           String   @id @default(cuid())
+  colonyId     String
+  title        String
+  description  String?
+  startDate    DateTime
+  endDate      DateTime
+  statistics   Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  colony       Colony   @relation(fields: [colonyId], references: [id], onDelete: Cascade)
+
+  @@index([colonyId])
+  @@index([createdAt])
+}
