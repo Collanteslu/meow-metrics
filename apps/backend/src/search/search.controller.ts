@@ -48,6 +48,12 @@ export class SearchController {
     type: String,
   })
   @ApiQuery({
+    name: 'city',
+    required: false,
+    description: 'Filter by colony city',
+    type: String,
+  })
+  @ApiQuery({
     name: 'skip',
     required: false,
     description: 'Number of results to skip',
@@ -71,6 +77,7 @@ export class SearchController {
     @Query('healthStatus') healthStatus?: string,
     @Query('gender') gender?: string,
     @Query('role') role?: string,
+    @Query('city') city?: string,
     @Query('skip') skip?: string,
     @Query('take') take?: string,
   ): Promise<SearchResponseDto> {
@@ -79,6 +86,7 @@ export class SearchController {
     if (healthStatus) filters.healthStatus = healthStatus;
     if (gender) filters.gender = gender;
     if (role) filters.role = role;
+    if (city) filters.city = city;
 
     return this.searchService.search({
       query,
