@@ -1,12 +1,17 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NOTIFICATION_TYPES, NOTIFICATION_SUBJECTS } from '../notifications/notifications.constants';
 
 @Injectable()
 export class CollaborationService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async invite(input: any, userId: string) {
-    return this.db.collaborator.create({
+    const collaboration = await this.db.collaborator.create({
       data: {
         colonyId: input.colonyId,
         userId: input.userId,
@@ -15,6 +20,31 @@ export class CollaborationService {
       },
       include: { user: true, colony: true },
     });
+
+    // Get inviter details
+    const inviter = await this.db.user.findUnique({
+      where: { id: userId },
+    });
+
+    // Send invitation email (non-blocking)
+    this.notifications
+      .sendEmail({
+        to: collaboration.user.email,
+        subject: NOTIFICATION_SUBJECTS[NOTIFICATION_TYPES.INVITATION_SENT],
+        template: NOTIFICATION_TYPES.INVITATION_SENT,
+        data: {
+          inviter: inviter?.email || 'A user',
+          colonyName: collaboration.colony.name,
+          role: collaboration.role,
+          colonyId: collaboration.colony.id,
+          appUrl: process.env.APP_URL || 'http://localhost:3000',
+        },
+      })
+      .catch((err) => {
+        console.error('Failed to send invitation email:', err);
+      });
+
+    return collaboration;
   }
 
   async accept(id: string, userId: string) {

@@ -22,7 +22,7 @@ export class UsersService {
       data: {
         email: input.email,
         password: input.password,
-        role: input.role,
+        role: input.role.toUpperCase() as any,
       },
     });
   }

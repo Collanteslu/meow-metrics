@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import * as bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { NOTIFICATION_TYPES, NOTIFICATION_SUBJECTS } from '../notifications/notifications.constants';
 
 const RegisterSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -23,6 +25,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async register(input: RegisterInput) {
@@ -39,6 +42,22 @@ export class AuthService {
       password: hashedPassword,
       role: input.role,
     });
+
+    // Send welcome email (non-blocking)
+    this.notifications
+      .sendEmail({
+        to: user.email,
+        subject: NOTIFICATION_SUBJECTS[NOTIFICATION_TYPES.WELCOME],
+        template: NOTIFICATION_TYPES.WELCOME,
+        data: {
+          name: user.email.split('@')[0],
+          appUrl: process.env.APP_URL || 'http://localhost:3000',
+        },
+      })
+      .catch((err) => {
+        console.error('Failed to send welcome email:', err);
+        // Don't throw - email failure shouldn't block user registration
+      });
 
     const tokens = this.generateTokens(user);
     return {
