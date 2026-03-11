@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-red-500 to-teal-500">
@@ -7,6 +9,9 @@ export default function Home() {
         <div className="mt-12 space-x-4">
           <a href="/login" className="btn btn-primary">Sign In</a>
           <a href="/register" className="btn btn-outline text-white">Register</a>
+          <Link href="/settings" className="btn btn-outline text-white">
+            Settings
+          </Link>
         </div>
       </div>
     </main>
